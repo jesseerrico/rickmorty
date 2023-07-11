@@ -7,12 +7,19 @@ class CharactersController < ApplicationController
         char_uri = URI(char_api_url)
         ep_uri = URI(episode_api_url)
 
+        query = params[:name]
+
+        if Rails.cache.exist?(query)
+            render :json => Rails.cache.fetch(query)
+            return
+        end
+
         char_http = Net::HTTP.new(char_uri.host, char_uri.port)
         char_http.use_ssl = true
         ep_http = Net::HTTP.new(ep_uri.host, ep_uri.port)
         ep_http.use_ssl = true
 
-        request = Net::HTTP::Get.new(char_uri.path + "?name=#{params[:name]}")
+        request = Net::HTTP::Get.new(char_uri.path + "?name=#{query}")
 
         response = char_http.request(request)
 
@@ -41,7 +48,8 @@ class CharactersController < ApplicationController
 
             ep_results.each do |episode|
                 # Each episode result will have an episode number code containing the season number (eg "S01E11")
-                season = episode["episode"].scan(/S(\d+)E/)[0][0].to_i
+                # The season number will be located between the characters "S" and "E".
+                season = episode["episode"].scan(/S(\d+)E/).first.first.to_i # First `first` finds the first match for "S01E"; second goes into the parens
                 
                 # If the season hash already contains an entry for this season, increment it. Otherwise, set to 1.
                 if(season_hash.key?(season))
@@ -61,6 +69,8 @@ class CharactersController < ApplicationController
                 appearances_by_season: season_hash,
             })
         end
+
+        Rails.cache.write(query, output, expires_in: 1.week)
 
         render :json => output
     end
