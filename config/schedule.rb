@@ -20,5 +20,5 @@
 # Learn more: http://github.com/javan/whenever
 
 every 1.week do
-    rake 'rickmorty:clear_cache'
+    rake 'rickmorty:cleanup'
 end
